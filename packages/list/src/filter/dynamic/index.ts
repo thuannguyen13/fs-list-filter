@@ -116,16 +116,39 @@ const handleClearButtons = (list: List) => {
 
     list.settingFilters = true;
 
-    // Remove all groups and conditions except the first one
-    filters.value.groups.splice(1);
+    // Remove extra dynamic groups only — standard groups use numeric string ids
+    // (e.g. "1", "2") while dynamic groups use crypto.randomUUID() which is not
+    // parseable as a finite number.  Iterating in reverse keeps the splice safe.
+    const groups = filters.value.groups;
+    let firstDynamicFound = false;
 
-    const firstGroup = filters.value.groups[0];
-    if (!firstGroup) return;
+    for (let i = groups.length - 1; i >= 0; i--) {
+      const isDynamic = isNaN(Number(groups[i].id));
+      if (!isDynamic) continue;
 
-    firstGroup.conditions.splice(1);
+      if (!firstDynamicFound) {
+        // Mark the first dynamic group (the last one we encounter in reverse)
+        // so we keep it and reset it below.
+        firstDynamicFound = true;
+      } else {
+        // Extra dynamic group — remove it.
+        groups.splice(i, 1);
+      }
+    }
 
-    const firstCondition = firstGroup.conditions[0];
-    if (!firstCondition) return;
+    const firstDynamicGroup = groups.find((g) => isNaN(Number(g.id)));
+    if (!firstDynamicGroup) {
+      list.settingFilters = false;
+      return;
+    }
+
+    firstDynamicGroup.conditions.splice(1);
+
+    const firstCondition = firstDynamicGroup.conditions[0];
+    if (!firstCondition) {
+      list.settingFilters = false;
+      return;
+    }
 
     const updated: Partial<FiltersCondition> = {
       value: Array.isArray(firstCondition.value) ? [] : '',

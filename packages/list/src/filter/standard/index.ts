@@ -52,6 +52,7 @@ const initStandardFiltersForm = (list: List, form: HTMLFormElement, groupIndex: 
     () => list.filters.value.groups[groupIndex]?.conditions,
     (conditions) => {
       if (list.readingFilters) return;
+      if (!conditions) return; // guard: dynamic clear may splice groups in mixed mode
 
       setConditionsData(list, form, conditions);
     },
