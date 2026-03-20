@@ -1,36 +1,28 @@
 {
-  "name": "@finsweet/attributes",
-  "description": "Finsweet's Attributes monorepo.",
-  "version": "2.0.0",
+  "name": "attributes-list",
+  "description": "Custom Finsweet List Attributes build.",
+  "version": "1.0.0",
   "type": "module",
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
-    "dev": "pnpm --filter @finsweet/attributes dev",
-    "build": "pnpm --filter @finsweet/attributes --filter @finsweet/attributes-docs build",
+    "build": "tsx build.ts",
     "check": "pnpm -r check",
     "lint": "pnpm -r lint",
-    "lint:fix": "pnpm -r lint:fix",
-    "test": "pnpm --filter @finsweet/attributes test",
-    "test:headed": "pnpm --filter @finsweet/attributes test:headed",
-    "release": "changeset publish",
-    "update": "pnpm update -i -L -r"
+    "lint:fix": "pnpm -r lint:fix"
   },
   "devDependencies": {
-    "@changesets/changelog-git": "^0.2.1",
-    "@changesets/cli": "^2.29.3",
     "@finsweet/eslint-config": "^3.0.3",
     "@finsweet/tsconfig": "^1.4.2",
-    "@playwright/test": "^1.52.0",
+    "esbuild": "^0.25.4",
+    "esbuild-plugin-inline-worker": "^0.1.1",
     "eslint": "^9.26.0",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-prettier": "^5.4.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "prettier": "^3.5.3",
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.32.0"
-  },
-  "publishConfig": {
-    "provenance": true
   }
 }

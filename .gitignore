@@ -27,12 +27,6 @@ typings/
 # Temp builds
 temp/
 
-# Production files
-packages/*/*.js
-packages/*/*.js.map
-
 .idea
 .DS_Store
-
-dist
 test-results/
