@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fs-list Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; font-size: 14px; color: #1e293b; background: #f8fafc; padding: 1.5rem; }
+
+    h1 { font-size: 1.25rem; margin-bottom: 1.5rem; }
+    h3 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: .05em; margin-bottom: .6rem; }
+    hr  { border: none; border-top: 1px solid #e2e8f0; margin: 1rem 0; }
+
+    /* ── Layout ─────────────────────────────── */
+    .layout { display: grid; grid-template-columns: 270px 1fr; gap: 1.5rem; }
+    .sidebar { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; height: fit-content; }
+
+    /* ── Inputs ──────────────────────────────── */
+    input[type="text"],
+    input[type="search"],
+    input[type="number"],
+    input[type="date"],
+    select:not(.condition-row select) {
+      width: 100%; padding: .35rem .55rem;
+      border: 1px solid #cbd5e1; border-radius: 5px;
+      font-size: .875rem; background: #fff;
+    }
+    input:focus, select:focus { outline: 2px solid #3b82f6; outline-offset: 1px; }
+
+    /* ── Toggle (master) ─────────────────────── */
+    .toggle-group { display: flex; gap: .25rem; margin-bottom: 1rem; }
+    .toggle-group label {
+      flex: 1; text-align: center; padding: .35rem .5rem;
+      border: 1px solid #cbd5e1; border-radius: 5px;
+      cursor: pointer; font-size: .8rem; user-select: none;
+      transition: background .15s, color .15s;
+    }
+    .toggle-group input[type="radio"] { display: none; }
+    .toggle-group label:has(input:checked) { background: #3b82f6; color: #fff; border-color: #3b82f6; font-weight: 600; }
+
+    /* ── Filter section ──────────────────────── */
+    .filter-section { margin-bottom: .9rem; }
+    .range-row { display: flex; gap: .3rem; align-items: center; }
+    .range-row input { width: 50%; }
+    .range-sep { color: #94a3b8; }
+
+    /* ── Checkbox items with facet count ────────
+       NOTE: facet-count MUST be inside the same
+       parent element as its input so queryElement
+       can find it via scope: formField.parentElement
+    ─────────────────────────────────────────── */
+    .check-item label {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: .4rem; padding: .25rem 0; cursor: pointer;
+    }
+    .check-item label span:first-child { display: flex; align-items: center; gap: .4rem; }
+    .facet-count {
+      font-size: .7rem; color: #94a3b8;
+      background: #f1f5f9; padding: 1px 7px; border-radius: 10px;
+      min-width: 22px; text-align: center;
+    }
+
+    /* ── Clear / action buttons ──────────────── */
+    .btn { padding: .3rem .65rem; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; cursor: pointer; font-size: .8rem; }
+    .btn:hover { background: #f1f5f9; }
+    .btn-danger:hover { background: #fee2e2; border-color: #fca5a5; }
+    .btn-full { width: 100%; margin-top: .5rem; }
+
+    /* ── Active-filter tags ───────────────────── */
+    .tags-area { display: flex; flex-wrap: wrap; gap: .35rem; min-height: 24px; margin-bottom: .75rem; }
+    [fs-list-element="tag"] {
+      display: inline-flex; align-items: center; gap: .25rem;
+      padding: .15rem .5rem; background: #eff6ff;
+      border: 1px solid #bfdbfe; border-radius: 12px; font-size: .75rem;
+    }
+    [fs-list-element="tag-operator"] { color: #94a3b8; font-style: italic; }
+    [fs-list-element="tag-remove"] { cursor: pointer; color: #94a3b8; margin-left: 2px; }
+    [fs-list-element="tag-remove"]:hover { color: #ef4444; }
+
+    /* ── Meta bar ────────────────────────────── */
+    .meta-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; color: #64748b; font-size: .85rem; }
+
+    /* ── Sort triggers ───────────────────────── */
+    .sort-bar { display: flex; gap: .5rem; align-items: center; }
+    [fs-list-element="sort-trigger"] { cursor: pointer; color: #3b82f6; font-size: .8rem; }
+    [fs-list-element="sort-trigger"]:hover { text-decoration: underline; }
+    .is-fs-list-asc::after  { content: " ↑"; }
+    .is-fs-list-desc::after { content: " ↓"; }
+
+    /* ── List ────────────────────────────────── */
+    .col-header, [fs-list-element="item"] {
+      display: grid;
+      grid-template-columns: 1.8fr 1.2fr .9fr .6fr .9fr;
+      gap: .5rem; align-items: center;
+      padding: .5rem .75rem;
+    }
+    .col-header { font-size: .7rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; border-bottom: 1px solid #e2e8f0; }
+    [fs-list-element="item"] { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: .35rem; }
+    [fs-list-element="item"]:hover { border-color: #cbd5e1; }
+
+    /* ── Empty state ─────────────────────────── */
+    [fs-list-element="empty"] {
+      display: none; padding: 2.5rem 1rem; text-align: center;
+      color: #94a3b8; border: 1px dashed #cbd5e1; border-radius: 8px;
+      background: #fff;
+    }
+
+    /* ── Status badge ────────────────────────── */
+    .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: .72rem; font-weight: 500; }
+    .b-assigned   { background: #dcfce7; color: #15803d; }
+    .b-unassigned { background: #fee2e2; color: #b91c1c; }
+
+    /* ── Highlight ───────────────────────────── */
+    .is-fs-list-highlight { background: #fef08a; border-radius: 2px; }
+
+    /* ── Dynamic filter ─────────────────────── */
+    .condition-group-box { border: 1px solid #e2e8f0; border-radius: 6px; padding: .7rem; margin-bottom: .5rem; }
+    .cg-header { display: flex; align-items: center; gap: .4rem; font-size: .78rem; color: #64748b; margin-bottom: .5rem; }
+    .cg-header select { width: auto; padding: .15rem .35rem; font-size: .75rem; }
+    .condition-row { display: flex; gap: .3rem; align-items: center; margin-bottom: .35rem; flex-wrap: wrap; }
+    .condition-row select,
+    .condition-row input { flex: 1; min-width: 80px; padding: .3rem .4rem; border: 1px solid #cbd5e1; border-radius: 4px; font-size: .8rem; }
+    .dyn-actions { display: flex; gap: .4rem; margin-top: .4rem; }
+    .btn-sm { padding: .2rem .5rem; font-size: .78rem; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; cursor: pointer; }
+    .btn-sm:hover { background: #f1f5f9; }
+    .btn-sm.remove:hover { background: #fee2e2; border-color: #fca5a5; }
+
+    /* ── Feature callout labels ──────────────── */
+    .label {
+      display: inline-block; font-size: .65rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em;
+      padding: 1px 6px; border-radius: 4px; vertical-align: middle; margin-left: .25rem;
+      background: #fef3c7; color: #92400e;
+    }
+  </style>
+</head>
+<body>
+
+<!--
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Script tag must carry the fs-list attribute so the library  │
+  │  can find it and read global settings.                       │
+  └─────────────────────────────────────────────────────────────┘
+-->
+<script src="./dist/attributes.js" fs-list type="module"></script>
+
+<h1>fs-list — Feature Showcase</h1>
+
+<!-- ════════════════════════════════════════════════════════════
+  FEATURE: Master Toggle  (Standard filter form — separate from
+  the sidebar form so it gets its own filter group / index)
+═════════════════════════════════════════════════════════════ -->
+<form fs-list-element="filters">
+  <div class="toggle-group">
+    <!-- Radio value="" → condition value empty → no filter applied (shows All) -->
+    <label><input type="radio" name="status-toggle" fs-list-field="status" fs-list-operator="equal" value="" checked><span>All</span></label>
+    <label><input type="radio" name="status-toggle" fs-list-field="status" fs-list-operator="equal" value="Assigned"><span>Assigned</span></label>
+    <label><input type="radio" name="status-toggle" fs-list-field="status" fs-list-operator="equal" value="Unassigned"><span>Unassigned</span></label>
+  </div>
+</form>
+
+<div class="layout">
+
+  <!-- ══════════════ SIDEBAR ══════════════ -->
+  <aside class="sidebar">
+
+    <!-- ────────────────────────────────────
+      FEATURE: Standard Filter
+      • text search  → operator: contain  → highlights matched text
+      • checkboxes   → operator: equal    → facet counts alongside
+      • number range → operator: ≥ / ≤
+      • date range   → operator: ≥
+    ──────────────────────────────────────── -->
+    <h3>Standard Filters</h3>
+    <form fs-list-element="filters">
+
+      <div class="filter-section">
+        <h3>Search name <span class="label">highlight</span></h3>
+        <!--
+          fs-list-debounce="300" → waits 300ms after typing before filtering.
+          Highlight is enabled on the list wrapper (fs-list-highlight="true").
+        -->
+        <input
+          type="search"
+          placeholder="e.g. Alice…"
+          fs-list-field="name"
+          fs-list-operator="contain"
+          fs-list-debounce="300"
+        />
+      </div>
+
+      <div class="filter-section">
+        <h3>Department <span class="label">facet count</span></h3>
+        <!--
+          IMPORTANT: facet-count must be INSIDE the same parent as the <input>
+          (here: the <label>) so queryElement(scope: input.parentElement) finds it.
+          Checkboxes share name="dept" → treated as a group by getCheckboxGroup().
+          fs-list-value holds the actual filter value; the HTML value attr is a fallback.
+        -->
+        <div class="check-item">
+          <label>
+            <span><input type="checkbox" name="dept" fs-list-field="department" fs-list-operator="equal" fs-list-value="Engineering" value="Engineering"> Engineering</span>
+            <span class="facet-count" fs-list-element="facet-count">–</span>
+          </label>
+        </div>
+        <div class="check-item">
+          <label>
+            <span><input type="checkbox" name="dept" fs-list-field="department" fs-list-operator="equal" fs-list-value="Design" value="Design"> Design</span>
+            <span class="facet-count" fs-list-element="facet-count">–</span>
+          </label>
+        </div>
+        <div class="check-item">
+          <label>
+            <span><input type="checkbox" name="dept" fs-list-field="department" fs-list-operator="equal" fs-list-value="Marketing" value="Marketing"> Marketing</span>
+            <span class="facet-count" fs-list-element="facet-count">–</span>
+          </label>
+        </div>
+        <div class="check-item">
+          <label>
+            <span><input type="checkbox" name="dept" fs-list-field="department" fs-list-operator="equal" fs-list-value="Sales" value="Sales"> Sales</span>
+            <span class="facet-count" fs-list-element="facet-count">–</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <h3>Score range</h3>
+        <div class="range-row">
+          <input type="number" placeholder="Min" fs-list-field="score" fs-list-operator="greater-equal" />
+          <span class="range-sep">–</span>
+          <input type="number" placeholder="Max" fs-list-field="score" fs-list-operator="less-equal" />
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <h3>Joined after</h3>
+        <input type="date" fs-list-field="joined" fs-list-operator="greater-equal" />
+      </div>
+
+      <!-- FEATURE: Clear button — clears all conditions in this form's group -->
+      <button type="button" fs-list-element="clear" class="btn btn-danger btn-full">Clear filters</button>
+
+    </form>
+
+    <hr />
+
+    <!-- ────────────────────────────────────
+      FEATURE: Dynamic Filter (Mixed Mode)
+      User can add conditions, choose field/operator/value.
+      Library shows correct value input per field type.
+      Multiple condition groups supported (+ Group button).
+    ──────────────────────────────────────── -->
+    <h3>Dynamic Filter <span class="label">mixed mode</span></h3>
+    <form fs-list-element="filters">
+
+      <!-- FEATURE: Active filter tags — auto-generated per active condition -->
+      <div class="tags-area">
+        <!-- Template tag (hidden, cloned by the library for each active condition) -->
+        <span fs-list-element="tag" style="display:none;">
+          <strong fs-list-element="tag-field"></strong>
+          <span fs-list-element="tag-operator"></span>
+          <em fs-list-element="tag-value"></em>
+          <span fs-list-element="tag-remove" title="Remove">✕</span>
+        </span>
+      </div>
+
+      <!--
+        condition-group: wraps one group of conditions (AND/OR logic within).
+        Multiple groups can be added via condition-groups-add button.
+        Groups themselves are AND/OR matched via condition-groups-match.
+      -->
+      <div fs-list-element="condition-group" class="condition-group-box">
+
+        <div class="cg-header">
+          Match:
+          <!-- condition-group-match: AND / OR between conditions inside this group -->
+          <select fs-list-element="condition-group-match">
+            <option value="and">ALL (AND)</option>
+            <option value="or">ANY (OR)</option>
+          </select>
+          <!-- Removes this entire condition group -->
+          <button type="button" fs-list-element="condition-group-remove" class="btn-sm remove" style="margin-left:auto;">✕ Group</button>
+        </div>
+
+        <!--
+          condition: template row (cloned on "+ Condition"). Library initialises
+          field → operator → value chain. Each row gets its own condition-remove.
+        -->
+        <div fs-list-element="condition" class="condition-row">
+
+          <!-- condition-field: option value = fs-list-field key on items -->
+          <select fs-list-element="condition-field">
+            <option value="">Field…</option>
+            <option value="name">Name</option>
+            <option value="department">Department</option>
+            <option value="status">Status</option>
+            <option value="score">Score</option>
+            <option value="joined">Joined</option>
+          </select>
+
+          <!--
+            condition-operator: library shows only valid operators for the
+            selected field type (text / number / date) via ALLOWED_DYNAMIC_FIELD_TYPES.
+          -->
+          <select fs-list-element="condition-operator">
+            <option value="">Op…</option>
+            <option value="equal">equals</option>
+            <option value="not-equal">≠</option>
+            <option value="contain">contains</option>
+            <option value="not-contain">not contains</option>
+            <option value="start">starts with</option>
+            <option value="end">ends with</option>
+            <option value="greater">></option>
+            <option value="greater-equal">≥</option>
+            <option value="less"><</option>
+            <option value="less-equal">≤</option>
+            <option value="empty">is empty</option>
+            <option value="not-empty">is not empty</option>
+          </select>
+
+          <!--
+            condition-value: multiple inputs, different types.
+            Library shows the correct one and hides the rest based on
+            field type + operator (ALLOWED_DYNAMIC_FIELD_TYPES in constants.ts).
+          -->
+          <input type="text"   fs-list-element="condition-value" placeholder="Value…" />
+          <input type="number" fs-list-element="condition-value" placeholder="0" />
+          <input type="date"   fs-list-element="condition-value" />
+          <!-- select-one: shown for text equal/not-equal -->
+          <select fs-list-element="condition-value">
+            <option value="">Choose…</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Design">Design</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Sales">Sales</option>
+            <option value="Assigned">Assigned</option>
+            <option value="Unassigned">Unassigned</option>
+          </select>
+
+          <button type="button" fs-list-element="condition-remove" class="btn-sm remove">✕</button>
+        </div>
+
+        <button type="button" fs-list-element="condition-add" class="btn-sm">+ Condition</button>
+      </div>
+
+      <div class="dyn-actions">
+        <!-- Adds a new condition group (AND/OR between groups) -->
+        <button type="button" fs-list-element="condition-groups-add" class="btn-sm">+ Group</button>
+        <!-- Clears all dynamic conditions -->
+        <button type="button" fs-list-element="clear" class="btn-sm remove">Clear</button>
+      </div>
+
+    </form>
+
+  </aside>
+
+  <!-- ══════════════ MAIN ══════════════ -->
+  <main>
+
+    <!-- FEATURE: Results count + Sort triggers -->
+    <div class="meta-bar">
+      <span>
+        Showing <strong fs-list-element="results-count">–</strong>
+        of <strong fs-list-element="items-count">–</strong> members
+      </span>
+      <div class="sort-bar">
+        <span style="color:#94a3b8">Sort:</span>
+        <!-- sort-trigger: click to toggle asc/desc. Library adds is-fs-list-asc / is-fs-list-desc class -->
+        <span fs-list-element="sort-trigger" fs-list-field="name">Name</span>
+        <span fs-list-element="sort-trigger" fs-list-field="department">Dept</span>
+        <span fs-list-element="sort-trigger" fs-list-field="score">Score</span>
+        <span fs-list-element="sort-trigger" fs-list-field="joined">Joined</span>
+      </div>
+    </div>
+
+    <div class="col-header">
+      <div>Name</div><div>Department</div><div>Status</div><div>Score</div><div>Joined</div>
+    </div>
+
+    <!-- ════════════════════════════════════════
+      LIST WRAPPER
+      fs-list-highlight="true" → wraps matched text in <span class="is-fs-list-highlight">
+    ═════════════════════════════════════════ -->
+    <div fs-list-element="wrapper" fs-list-highlight="true">
+
+      <div fs-list-element="list">
+
+        <!-- ── ITEMS ──────────────────────────────
+          Each item needs:
+          • fs-list-element="item"         → marks it as a list item
+          • fs-list-field="key"            → makes the field filterable/sortable
+          • fs-list-fieldtype="number|date"→ for non-text fields (required for correct sort/filter)
+          Text fields default to type "text" — no fs-list-fieldtype needed.
+        ─────────────────────────────────────── -->
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Alice Johnson</span>
+          <span fs-list-field="department">Engineering</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">920</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2022-03-10</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Bob Martinez</span>
+          <span fs-list-field="department">Design</span>
+          <span fs-list-field="status"><span class="badge b-unassigned">Unassigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">710</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2023-07-22</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Carol White</span>
+          <span fs-list-field="department">Marketing</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">840</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2021-11-05</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">David Kim</span>
+          <span fs-list-field="department">Engineering</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">760</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2023-02-14</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Eva Nguyen</span>
+          <span fs-list-field="department">Sales</span>
+          <span fs-list-field="status"><span class="badge b-unassigned">Unassigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">630</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2024-01-08</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Frank Lee</span>
+          <span fs-list-field="department">Design</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">880</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2022-09-30</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Grace Chen</span>
+          <span fs-list-field="department">Engineering</span>
+          <span fs-list-field="status"><span class="badge b-unassigned">Unassigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">790</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2023-04-17</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Henry Park</span>
+          <span fs-list-field="department">Marketing</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">810</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2021-06-20</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Iris Rodriguez</span>
+          <span fs-list-field="department">Sales</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">950</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2020-12-01</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">James Wilson</span>
+          <span fs-list-field="department">Engineering</span>
+          <span fs-list-field="status"><span class="badge b-unassigned">Unassigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">680</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2024-03-05</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Karen Patel</span>
+          <span fs-list-field="department">Design</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">870</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2022-07-11</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Liam Brown</span>
+          <span fs-list-field="department">Sales</span>
+          <span fs-list-field="status"><span class="badge b-unassigned">Unassigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">720</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2023-10-19</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Mia Thompson</span>
+          <span fs-list-field="department">Marketing</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">830</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2021-08-25</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Noah Davis</span>
+          <span fs-list-field="department">Engineering</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">900</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2022-01-30</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Olivia Garcia</span>
+          <span fs-list-field="department">Design</span>
+          <span fs-list-field="status"><span class="badge b-unassigned">Unassigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">650</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2024-05-12</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Paul Anderson</span>
+          <span fs-list-field="department">Sales</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">770</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2023-06-03</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Quinn Murphy</span>
+          <span fs-list-field="department">Marketing</span>
+          <span fs-list-field="status"><span class="badge b-unassigned">Unassigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">690</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2024-02-28</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Rachel Scott</span>
+          <span fs-list-field="department">Engineering</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">860</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2022-05-18</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Sam Taylor</span>
+          <span fs-list-field="department">Design</span>
+          <span fs-list-field="status"><span class="badge b-unassigned">Unassigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">740</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2023-09-07</span>
+        </div>
+
+        <div fs-list-element="item">
+          <span fs-list-field="name">Tina Lewis</span>
+          <span fs-list-field="department">Sales</span>
+          <span fs-list-field="status"><span class="badge b-assigned">Assigned</span></span>
+          <span fs-list-field="score" fs-list-fieldtype="number">910</span>
+          <span fs-list-field="joined" fs-list-fieldtype="date">2021-04-14</span>
+        </div>
+
+      </div><!-- /list -->
+
+      <!-- FEATURE: Empty state — shown automatically when filter returns 0 results -->
+      <div fs-list-element="empty">
+        No members match the current filters.
+      </div>
+
+    </div><!-- /wrapper -->
+
+  </main>
+</div><!-- /layout -->
+
+</body>
+</html>
