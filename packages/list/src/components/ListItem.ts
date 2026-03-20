@@ -215,27 +215,27 @@ export class ListItem {
 
         const regex = new RegExp(match.filterValue, 'gi');
 
-        const walkNodes = (parent: Node) => {
-          for (const node of Array.from(parent.childNodes)) {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-              walkNodes(node);
-              continue;
-            }
+        // Collect all text nodes first via TreeWalker (native C++ iterator, faster than
+        // manual JS recursion), then replace — collecting first avoids walker invalidation
+        // caused by replaceWith() mutating the DOM mid-iteration.
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        const textNodes: Text[] = [];
+        let textNode = walker.nextNode() as Text | null;
+        while (textNode) {
+          textNodes.push(textNode);
+          textNode = walker.nextNode() as Text | null;
+        }
 
-            if (node.nodeType !== Node.TEXT_NODE) continue;
+        for (const node of textNodes) {
+          const text = node.textContent || '';
+          regex.lastIndex = 0;
+          if (!regex.test(text)) continue;
 
-            const text = node.textContent || '';
+          const template = document.createElement('template');
+          template.innerHTML = text.replace(regex, `<span class="${this.highlightClass}">$&</span>`);
 
-            if (!regex.test(text)) continue;
-
-            const template = document.createElement('template');
-            template.innerHTML = text.replace(regex, `<span class="${this.highlightClass}">$&</span>`);
-
-            node.replaceWith(template.content);
-          }
-        };
-
-        walkNodes(element);
+          node.replaceWith(template.content);
+        }
       }
     }
   }
