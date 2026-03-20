@@ -14,8 +14,8 @@ import { initFacets } from './facets';
  * @param form
  * @returns A cleanup function.
  */
-export const initStandardFilters = (list: List, forms: HTMLFormElement[]) => {
-  const cleanups = forms.map((form, groupIndex) => initStandardFiltersForm(list, form, groupIndex));
+export const initStandardFilters = (list: List, forms: HTMLFormElement[], startGroupIndex = 0) => {
+  const cleanups = forms.map((form, i) => initStandardFiltersForm(list, form, startGroupIndex + i));
 
   return () => {
     for (const cleanup of cleanups) {

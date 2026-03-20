@@ -51,8 +51,21 @@ export const initListFiltering = (list: List, forms: HTMLFormElement[]) => {
 
   // Init filters
   const dynamicForms = forms.filter((form) => !!queryElement('condition-group', { scope: form }));
+  const standardForms = forms.filter((form) => !queryElement('condition-group', { scope: form }));
   const isDynamic = dynamicForms.length > 0;
-  const filteringCleanup = isDynamic ? initDynamicFilters(list, dynamicForms) : initStandardFilters(list, forms);
+
+  const dynamicCleanup = isDynamic ? initDynamicFilters(list, dynamicForms) : undefined;
+  // In mixed mode, standard forms start after the dynamic groups so indices don't overlap
+  const standardCleanup = isDynamic && standardForms.length > 0
+    ? initStandardFilters(list, standardForms, dynamicForms.length)
+    : !isDynamic
+      ? initStandardFilters(list, forms)
+      : undefined;
+
+  const filteringCleanup = () => {
+    dynamicCleanup?.();
+    standardCleanup?.();
+  };
 
   // Init Tags
   const tagsCleanup = initTags(list, isDynamic);
