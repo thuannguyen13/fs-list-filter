@@ -10,6 +10,18 @@ type ValidFiltersGroup = FiltersGroup & {
 self.onmessage = (e: MessageEvent<FilterTaskData>) => {
   const { filters, items } = e.data;
 
+  // Cache toLowerCase results — field values often repeat across items (e.g. categories),
+  // and filter values are shared across ALL items for a given condition.
+  const lowerCache = new Map<string, string>();
+  const toLower = (s: string) => {
+    let result = lowerCache.get(s);
+    if (result === undefined) {
+      result = s.toLowerCase();
+      lowerCache.set(s, result);
+    }
+    return result;
+  };
+
   // Filter out invalid conditions (e.g. empty values) and groups (e.g. no valid conditions)
   const validGroups = filters.groups.reduce<ValidFiltersGroup[]>((validGroups, group) => {
     const validConditions = group.conditions.reduce<FiltersCondition[]>((validConditions, condition) => {
@@ -63,11 +75,11 @@ self.onmessage = (e: MessageEvent<FilterTaskData>) => {
             if (op === 'equal' || op === 'not-equal') {
               match = areEqual(fieldValue, parsedFilterValue, condition.fuzzyThreshold);
             } else if (op === 'start' || op === 'not-start') {
-              match = fieldValue.toString().toLowerCase().startsWith(filterValue.toLowerCase());
+              match = toLower(fieldValue.toString()).startsWith(toLower(filterValue));
             } else if (op === 'end' || op === 'not-end') {
-              match = fieldValue.toString().toLowerCase().endsWith(filterValue.toLowerCase());
+              match = toLower(fieldValue.toString()).endsWith(toLower(filterValue));
             } else if (op === 'contain' || op === 'not-contain') {
-              match = fieldValue.toString().toLowerCase().includes(filterValue.toLowerCase());
+              match = toLower(fieldValue.toString()).includes(toLower(filterValue));
             } else if (op === 'greater' || op === 'greater-equal' || op === 'less' || op === 'less-equal') {
               match = numericCompare(fieldValue, parsedFilterValue, op);
             }

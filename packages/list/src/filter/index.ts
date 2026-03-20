@@ -83,7 +83,7 @@ export const initListFiltering = (list: List, forms: HTMLFormElement[]) => {
       if (list.showQuery) {
         setListFiltersQuery(list);
       }
-    }, 0),
+    }, 16),
     { deep: true, immediate: true }
   );
 

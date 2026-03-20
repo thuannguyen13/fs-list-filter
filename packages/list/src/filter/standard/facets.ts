@@ -161,7 +161,7 @@ const createInputFacetsHandler = (list: List, formField: HTMLInputElement, group
         addClassOnEmptyTarget.classList.toggle(emptyClassName, !hasResults);
       }
     },
-    0
+    16
   );
 
   return handler;
@@ -226,7 +226,7 @@ const createSelectOptionsFacetsHandler = (list: List, formField: HTMLSelectEleme
         })
       );
     },
-    0
+    16
   );
 
   return handler;
@@ -252,9 +252,8 @@ const triggerFacetFilter = ({
   groupIndex: number;
   value: string;
 }) => {
-  const filtersClone = structuredClone(toRaw(filters)) as Filters;
-
-  const conditionsGroup = filtersClone.groups[groupIndex];
+  const rawFilters = toRaw(filters);
+  const conditionsGroup = rawFilters.groups[groupIndex];
   if (!conditionsGroup) return;
 
   const { conditions = [] } = conditionsGroup;
@@ -263,16 +262,23 @@ const triggerFacetFilter = ({
   const condition = conditions[conditionIndex];
   if (!condition) return;
 
-  // Inject the condition value
-  if (Array.isArray(condition.value)) {
-    if (condition.filterMatch === 'and') {
-      condition.value.push(value);
-    } else {
-      condition.value = [value];
-    }
-  } else {
-    condition.value = value;
-  }
+  // Build the injected value without mutating the original
+  const injectedValue = Array.isArray(condition.value)
+    ? condition.filterMatch === 'and'
+      ? [...condition.value, value]
+      : [value]
+    : value;
 
-  return filterItems(filtersClone, items);
+  // Shallow-clone only the changed parts — the worker reads but does not mutate
+  const modifiedCondition = { ...condition, value: injectedValue };
+  const modifiedGroup = {
+    ...conditionsGroup,
+    conditions: conditions.map((c, i) => (i === conditionIndex ? modifiedCondition : c)),
+  };
+  const modifiedFilters: Filters = {
+    ...rawFilters,
+    groups: rawFilters.groups.map((g, i) => (i === groupIndex ? modifiedGroup : g)),
+  };
+
+  return filterItems(modifiedFilters, items);
 };
